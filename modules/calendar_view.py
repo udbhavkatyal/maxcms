@@ -1,5 +1,3 @@
-# modules/calendar_view.py
-
 import hashlib
 import colorsys
 import pandas as pd
@@ -143,8 +141,8 @@ def render_calendar(events):
         "fixedWeekCount": False,
         "displayEventTime": False,
         "eventDisplay": "block",
-        "dayMaxEvents": False,
-        "dayMaxEventRows": False,
+        "dayMaxEvents": 2,
+        "dayMaxEventRows": 2,
         "headerToolbar": {
             "left": "prev,next today",
             "center": "title",
@@ -320,6 +318,54 @@ def render_calendar(events):
 
     .fc .fc-list-event:hover td {{
         background: #f8fbff !important;
+    }}
+
+    @media (max-width: 768px) {{
+        .fc .fc-toolbar {{
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 10px !important;
+            align-items: stretch !important;
+        }}
+
+        .fc .fc-toolbar-title {{
+            font-size: 1rem !important;
+            text-align: center !important;
+        }}
+
+        .fc .fc-daygrid-day-frame {{
+            min-height: 70px !important;
+            padding: 2px !important;
+        }}
+
+        .fc .fc-daygrid-event,
+        .fc .fc-h-event {{
+            min-height: auto !important;
+            padding: 2px 4px !important;
+            border-radius: 8px !important;
+            margin-bottom: 2px !important;
+        }}
+
+        .fc .fc-event-title {{
+            font-size: 0.62rem !important;
+            line-height: 1.1 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }}
+
+        .fc .fc-col-header-cell-cushion {{
+            font-size: 0.70rem !important;
+        }}
+
+        .fc .fc-daygrid-day-number {{
+            font-size: 0.75rem !important;
+        }}
+
+        .fc .fc-button {{
+            font-size: 0.75rem !important;
+            padding: 4px 8px !important;
+        }}
     }}
     """
 
