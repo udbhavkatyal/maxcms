@@ -7,6 +7,10 @@ import gspread
 from google.oauth2.service_account import Credentials
 from modules.config import extract_spreadsheet_id
 
+from datetime import datetime
+
+
+
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -61,6 +65,58 @@ def ensure_required_columns(worksheet):
 
 def get_column_map(headers):
     return {header: idx + 1 for idx, header in enumerate(headers)}
+
+def normalize_publish_date(value):
+    if value is None or value == "":
+        return pd.NaT
+
+    if isinstance(value, (int, float)):
+        try:
+            return (
+                pd.Timestamp("1899-12-30")
+                + pd.to_timedelta(float(value), unit="D")
+            )
+        except Exception:
+            return pd.NaT
+
+    try:
+        return pd.to_datetime(
+            str(value).strip(),
+            errors="coerce",
+            dayfirst=True,
+        )
+    except Exception:
+        return pd.NaT
+
+    value = str(value).strip()
+
+    if not value:
+        return pd.NaT
+
+    formats = [
+        "%Y-%m-%d",
+        "%d/%m/%Y",
+        "%m/%d/%Y",
+        "%d-%m-%Y",
+        "%d %b %Y",
+        "%d %B %Y",
+        "%b %d %Y",
+        "%B %d %Y",
+    ]
+
+    for fmt in formats:
+        try:
+            return pd.Timestamp(
+                datetime.strptime(value, fmt)
+            )
+        except Exception:
+            pass
+
+    return pd.to_datetime(
+        value,
+        errors="coerce",
+        dayfirst=True,
+    )
 
 
 def read_sheet(spreadsheet_url, worksheet_name, client_name, worksheet_gid):
@@ -117,29 +173,56 @@ def append_content_row(spreadsheet_url, worksheet_name, row_data):
 
     values = [row_data.get(header, "") for header in headers]
 
-    publish_date = pd.to_datetime(row_data.get("Publishing Date"), errors="coerce")
+    publish_date = normalize_publish_date(
+        row_data.get("Publishing Date")
+    )
 
-    all_rows = ws.get_all_values()
+    all_rows = ws.get(
+        "A:ZZ",
+         value_render_option="UNFORMATTED_VALUE",
+    )
+
+    # Default = append to end
     insert_position = len(all_rows) + 1
 
     try:
         publishing_date_col = headers.index("Publishing Date")
 
+        dated_rows = []
+
         for idx, row in enumerate(all_rows[1:], start=2):
-            existing_date = None
 
-            if len(row) > publishing_date_col:
-                existing_date = pd.to_datetime(row[publishing_date_col], errors="coerce")
+            if len(row) <= publishing_date_col:
+                continue
 
+            existing_date = normalize_publish_date(
+                row[publishing_date_col]
+            )
+
+            if pd.notna(existing_date):
+                dated_rows.append(
+                    (idx, existing_date)
+                )
+
+        # Sort valid dates only
+        dated_rows.sort(key=lambda x: x[1])
+
+        for row_idx, existing_date in dated_rows:
             if (
-                pd.notna(existing_date)
-                and pd.notna(publish_date)
-                and publish_date < existing_date
+                pd.notna(publish_date)
+                and publish_date <= existing_date
             ):
-                insert_position = idx
+                insert_position = row_idx
                 break
-    except Exception:
-        pass
+
+        print(
+            f"Publish Date={publish_date} | Insert Position={insert_position}"
+        )
+
+    except Exception as e:
+        print(
+            f"Insert position calculation error: {e}"
+        )
 
     ws.insert_row(
         values,
@@ -147,17 +230,21 @@ def append_content_row(spreadsheet_url, worksheet_name, row_data):
         value_input_option="USER_ENTERED",
     )
 
+    # Rebuild Sheet Row IDs
     row_id_col = headers.index("Sheet Row ID") + 1
     total_rows = len(ws.get_all_values())
 
     for row_num in range(2, total_rows + 1):
-        ws.update_cell(row_num, row_id_col, row_num)
+        ws.update_cell(
+            row_num,
+            row_id_col,
+            row_num,
+        )
 
     return {
         "row_number": insert_position,
         "worksheet_id": ws.id,
     }
-
 
 def update_publish_status(spreadsheet_url, worksheet_name, row_number, urls_dict):
     sh, ws = open_client_sheet(spreadsheet_url, worksheet_name)
@@ -251,3 +338,53 @@ def update_approval_status(
 
 def get_sheet_row_url(spreadsheet_url, worksheet_gid, row_number):
     return f"{spreadsheet_url}#gid={worksheet_gid}&range=A{row_number}"
+
+def sort_sheet_by_publish_date(
+    spreadsheet_url,
+    worksheet_name,
+):
+    sh, ws = open_client_sheet(
+        spreadsheet_url,
+        worksheet_name,
+    )
+
+    values = ws.get_all_values()
+
+    if len(values) <= 2:
+        return
+
+    header = values[0]
+    rows = values[1:]
+
+    try:
+        publish_idx = header.index("Publishing Date")
+    except ValueError:
+        return
+
+    def sort_key(row):
+        try:
+            return pd.to_datetime(
+                row[publish_idx],
+                errors="coerce",
+            )
+        except Exception:
+            return pd.Timestamp.max
+
+    rows.sort(key=sort_key)
+
+    ws.update(
+        "A1",
+        [header] + rows,
+        value_input_option="USER_ENTERED",
+    )
+
+    # Rebuild Sheet Row IDs
+    if "Sheet Row ID" in header:
+        row_id_col = header.index("Sheet Row ID") + 1
+
+        for row_num in range(2, len(rows) + 2):
+            ws.update_cell(
+                row_num,
+                row_id_col,
+                row_num,
+            )

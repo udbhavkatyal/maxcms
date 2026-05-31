@@ -5,11 +5,15 @@ import pandas as pd
 
 from datetime import timedelta, datetime, time
 
-from modules.sheets import append_content_row
+from modules.sheets import (
+    append_content_row,
+    sort_sheet_by_publish_date,
+)
 from modules.trello import (
     get_list_by_name,
     get_cards,
     create_card,
+    sort_list_by_due_date,
 )
 from modules.helpers import get_next_content_id
 
@@ -195,6 +199,10 @@ Description:
                 due_date.isoformat(),
             )
 
+            sort_list_by_due_date(
+                trello_list["id"]
+            )
+
             row_data = {
                 "Production": production_date.strftime("%d %b"),
                 "Publishing Date": publish_ts.strftime("%Y-%m-%d"),
@@ -220,6 +228,9 @@ Description:
                 worksheet_name,
                 row_data,
             )
+
+
+
 
             st.markdown("</div>", unsafe_allow_html=True)
             st.success(f"{content_id} created successfully.")
