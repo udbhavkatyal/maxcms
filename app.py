@@ -1056,8 +1056,20 @@ with st.sidebar:
     show_only_pending = st.toggle("Only Pending", value=False)
     show_only_with_assets = st.toggle("Only With Assets", value=False)
 
-if page == "Create Content":
+if (
+    page == "Create Content"
+    or st.session_state.get("page_override") == "Create Content"
+):
     render_create_content(config_df)
+
+    if st.button(
+        "← Back to Dashboard",
+        key="back_dashboard",
+        use_container_width=True,
+    ):
+        st.session_state.pop("page_override", None)
+        st.rerun()
+
     st.stop()
 
 filtered_df = calendar_df.copy()
@@ -1112,6 +1124,18 @@ overdue = filtered_df[
 ]
 
 render_hero(base_df, selected_client)
+
+# Quick actions
+action1, action2 = st.columns([1, 5])
+
+with action1:
+    if st.button(
+        "➕ Create Content",
+        key="top_create_content",
+        use_container_width=True,
+    ):
+        st.session_state["page_override"] = "Create Content"
+        st.rerun()
 
 k1, k2, k3, k4, k5 = st.columns(5)
 
