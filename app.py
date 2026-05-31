@@ -13,7 +13,7 @@ from modules.calendar_view import build_events, render_calendar
 from modules.create_content import render_create_content
 from modules.publish import render_publish_form
 from modules.helpers import parse_publish_date
-from modules.trello import get_approved_links
+from modules.trello import get_assets_and_approval
 
 
 st.set_page_config(
@@ -902,14 +902,25 @@ def detail_modal():
 
     with left:
         c1, c2, c3 = st.columns(3)
+
         with c1:
             st.markdown(f"**Type**  \n{row.get('Type', '-')}")
-            st.markdown(f"**Publish Date**  \n{format_display_date(row.get('Publishing Date'))}")
+            st.markdown(
+                f"**Publish Date**  \n{format_display_date(row.get('Publishing Date'))}"
+            )
             st.markdown(f"**Platforms**  \n{row.get('Channel(s)', '-')}")
+
         with c2:
-            st.markdown(f"**Status**  \n{row.get('Publishing Status', 'Pending')}")
-            st.markdown(f"**Client Approval**  \n{row.get('Approval', 'Pending')}")
-            st.markdown(f"**Internal Approval**  \n{row.get('Internal Approval', 'Pending')}")
+            st.markdown(
+                f"**Status**  \n{row.get('Publishing Status', 'Pending')}"
+            )
+            st.markdown(
+                f"**Client Approval**  \n{row.get('Approval', 'Pending')}"
+            )
+            st.markdown(
+                f"**Internal Approval**  \n{row.get('Internal Approval', 'Pending')}"
+            )
+
         with c3:
             st.markdown(f"**Ratio**  \n{row.get('Ratio', '-')}")
             st.markdown(f"**Day**  \n{row.get('Day', '-')}")
@@ -920,7 +931,11 @@ def detail_modal():
         actual_sheet_row_id = str(row.get("Sheet Row ID", "")).strip()
 
         if trello_url:
-            st.link_button("Open Trello Card", trello_url, use_container_width=True)
+            st.link_button(
+                "Open Trello Card",
+                trello_url,
+                use_container_width=True,
+            )
 
         if actual_sheet_row_id:
             try:
@@ -929,13 +944,20 @@ def detail_modal():
                     row["Worksheet GID"],
                     int(actual_sheet_row_id),
                 )
-                st.link_button("Open Sheet Row", row_url, use_container_width=True)
+
+                st.link_button(
+                    "Open Sheet Row",
+                    row_url,
+                    use_container_width=True,
+                )
+
             except Exception:
                 pass
 
     st.divider()
 
     asset_link = row.get("Asset Link", "")
+
     a1, a2 = st.columns([2, 1])
 
     with a1:
@@ -944,9 +966,20 @@ def detail_modal():
         asset_text = "" if pd.isna(asset_link) else str(asset_link)
 
         asset_links = []
-        for part in asset_text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+
+        for part in (
+            asset_text.replace("\r\n", "\n")
+            .replace("\r", "\n")
+            .split("\n")
+        ):
             clean_link = str(part).strip()
-            if clean_link and clean_link.lower().startswith(("http://", "https://")):
+
+            if (
+                clean_link
+                and clean_link.lower().startswith(
+                    ("http://", "https://")
+                )
+            ):
                 asset_links.append(clean_link)
 
         if asset_links:
@@ -954,7 +987,6 @@ def detail_modal():
                 st.link_button(
                     f"Open Asset {idx}",
                     url=link,
-                    key=f"modal_asset_{row_content_id or actual_sheet_row_id}_{idx}",
                     use_container_width=True,
                 )
         else:
@@ -962,6 +994,7 @@ def detail_modal():
 
     with a2:
         st.markdown("### Actions")
+
         if st.button(
             "Fetch Assets From Trello",
             key=f"fetch_asset_{row_content_id or actual_sheet_row_id}",
@@ -975,11 +1008,22 @@ def detail_modal():
 
                 if not card_reference:
                     st.error("No Trello Card found.")
-                else:
-                    links = get_approved_links(card_reference)
 
-                    if not links:
-                        st.warning("No approved links found.")
+                else:
+                    approved, links = get_assets_and_approval(
+                        card_reference
+                    )
+
+                    if not approved:
+                        st.error(
+                            "Content is not approved in Trello."
+                        )
+
+                    elif not links:
+                        st.warning(
+                            "Approved but no asset links were found."
+                        )
+
                     else:
                         update_asset_link(
                             spreadsheet_url=row["Spreadsheet URL"],
@@ -987,28 +1031,46 @@ def detail_modal():
                             row_number=int(actual_sheet_row_id),
                             asset_links=links,
                         )
-                        st.success(f"Fetched {len(links)} asset link(s).")
+
+                        st.success(
+                            f"Fetched {len(links)} asset link(s)."
+                        )
+
                         st.cache_data.clear()
                         st.rerun()
+
             except Exception as e:
                 st.error(str(e))
 
     info_text = str(row.get("Info", "")).strip()
-    reference_text = str(row.get("Reference / Additional", "")).strip()
+    reference_text = str(
+        row.get("Reference / Additional", "")
+    ).strip()
     caption_text = str(row.get("Caption", "")).strip()
 
-    tab1, tab2, tab3 = st.tabs(["Brief", "Reference", "Caption"])
+    tab1, tab2, tab3 = st.tabs(
+        ["Brief", "Reference", "Caption"]
+    )
 
     with tab1:
-        st.write(info_text if info_text else "No brief added.")
+        st.write(
+            info_text if info_text else "No brief added."
+        )
 
     with tab2:
-        st.write(reference_text if reference_text else "No references added.")
+        st.write(
+            reference_text
+            if reference_text
+            else "No references added."
+        )
 
     with tab3:
-        st.write(caption_text if caption_text else "No caption added.")
+        st.write(
+            caption_text if caption_text else "No caption added."
+        )
 
     st.divider()
+
     render_publish_form(row)
 
 

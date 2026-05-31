@@ -300,7 +300,7 @@ def update_asset_link(spreadsheet_url, worksheet_name, row_number, asset_links):
 
     if isinstance(asset_links, list):
         asset_links = "\n".join(asset_links)
-
+    print("SAVING LINKS:", asset_links)
     ws.update_cell(row_number, col_map["Asset Link"], asset_links)
 
     timestamp = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")

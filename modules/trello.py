@@ -128,11 +128,11 @@ def sort_list_by_due_date(list_id):
         r.raise_for_status()
 
 
-def get_approved_links(card_value):
+def get_assets_and_approval(card_value):
     card_id = extract_card_id(card_value)
 
     if not card_id:
-        return []
+        return False, []
 
     r = requests.get(
         f"{BASE_URL}/cards/{card_id}/actions",
@@ -145,6 +145,7 @@ def get_approved_links(card_value):
 
     actions = r.json()
 
+    approved = False
     links = []
 
     for action in actions:
@@ -153,15 +154,30 @@ def get_approved_links(card_value):
         if not text:
             continue
 
-        if "approved" not in text.lower():
-            continue
+        text_lower = text.lower()
 
-        found_links = re.findall(
-            r"https?://[^\s]+",
-            text,
-        )
+        # Check approval anywhere
+        if "approved" in text_lower:
+            approved = True
 
-        links.extend(found_links)
+        # Only collect links from ASSET comments
+        if "asset" in text_lower:
+            print("RAW COMMENT:", repr(text))
+
+            found_links = re.findall(
+                r"https?://[^\s]+",
+                text,
+            )
+
+            # Clean malformed markdown-style URLs
+            found_links = [
+                link.split("](")[0].rstrip(")]},.")
+                for link in found_links
+            ]
+
+            print("FOUND LINKS:", found_links)
+
+            links.extend(found_links)
 
     unique_links = []
     seen = set()
@@ -171,4 +187,6 @@ def get_approved_links(card_value):
             seen.add(link)
             unique_links.append(link)
 
-    return unique_links
+    print("TRELLO LINKS:", unique_links)
+
+    return approved, unique_links
