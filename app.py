@@ -920,7 +920,7 @@ def detail_modal():
         actual_sheet_row_id = str(row.get("Sheet Row ID", "")).strip()
 
         if trello_url:
-            st.link_button("Open Trello Card", trello_url, width="stretch")
+            st.link_button("Open Trello Card", trello_url, use_container_width=True)
 
         if actual_sheet_row_id:
             try:
@@ -929,7 +929,7 @@ def detail_modal():
                     row["Worksheet GID"],
                     int(actual_sheet_row_id),
                 )
-                st.link_button("Open Sheet Row", row_url, width="stretch")
+                st.link_button("Open Sheet Row", row_url, use_container_width=True)
             except Exception:
                 pass
 
@@ -955,7 +955,7 @@ def detail_modal():
                     f"Open Asset {idx}",
                     url=link,
                     key=f"modal_asset_{row_content_id or actual_sheet_row_id}_{idx}",
-                    width="stretch",
+                    use_container_width=True,
                 )
         else:
             st.markdown(":red[No Asset Attached Yet]")
@@ -1240,7 +1240,7 @@ for idx, row in queue_df.head(15).iterrows():
                         "Open Sheet Row",
                         sheet_url,
                         key=f"sheet_link_{row.get('Content ID','')}_{row.get('Sheet Row ID','')}_{idx}",
-                        width="stretch",
+                        use_container_width=True,
                     )
                 except Exception:
                     pass
