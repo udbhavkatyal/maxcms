@@ -920,7 +920,7 @@ def detail_modal():
         actual_sheet_row_id = str(row.get("Sheet Row ID", "")).strip()
 
         if trello_url:
-            st.link_button("Open Trello Card", trello_url, use_container_width=True)
+            st.link_button("Open Trello Card", trello_url, width="stretch")
 
         if actual_sheet_row_id:
             try:
@@ -929,29 +929,36 @@ def detail_modal():
                     row["Worksheet GID"],
                     int(actual_sheet_row_id),
                 )
-                st.link_button("Open Sheet Row", row_url, use_container_width=True)
+                st.link_button("Open Sheet Row", row_url, width="stretch")
             except Exception:
                 pass
 
     st.divider()
 
-    asset_link = str(row.get("Asset Link", "")).strip()
+    asset_link = row.get("Asset Link", "")
     a1, a2 = st.columns([2, 1])
 
     with a1:
         st.markdown("### Assets")
-        if asset_link:
-            for idx, link in enumerate(asset_link.split("\\n"), start=1):
-                link = link.strip()
-                if link:
-                    st.link_button(
-                        f"Open Asset {idx}",
-                        link,
-                        key=f"modal_asset_{row_content_id or actual_sheet_row_id}_{idx}",
-                        use_container_width=True,
-                    )
+
+        asset_text = "" if pd.isna(asset_link) else str(asset_link)
+
+        asset_links = []
+        for part in asset_text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+            clean_link = str(part).strip()
+            if clean_link and clean_link.lower().startswith(("http://", "https://")):
+                asset_links.append(clean_link)
+
+        if asset_links:
+            for idx, link in enumerate(asset_links, start=1):
+                st.link_button(
+                    f"Open Asset {idx}",
+                    url=link,
+                    key=f"modal_asset_{row_content_id or actual_sheet_row_id}_{idx}",
+                    width="stretch",
+                )
         else:
-            st.caption("No asset links added yet.")
+            st.markdown(":red[No Asset Attached Yet]")
 
     with a2:
         st.markdown("### Actions")
@@ -1233,7 +1240,7 @@ for idx, row in queue_df.head(15).iterrows():
                         "Open Sheet Row",
                         sheet_url,
                         key=f"sheet_link_{row.get('Content ID','')}_{row.get('Sheet Row ID','')}_{idx}",
-                        use_container_width=True,
+                        width="stretch",
                     )
                 except Exception:
                     pass

@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 
 
 def login():
@@ -32,6 +33,11 @@ def login():
             border: none !important;
             background: transparent !important;
         }
+
+        /* Hide "Press Enter to submit form" */
+        .stForm [data-testid="InputInstructions"] {
+            display: none !important;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -48,6 +54,28 @@ def login():
                 type="password",
                 placeholder="Password",
                 label_visibility="collapsed",
+            )
+
+            # Auto-focus password field
+            components.html(
+                """
+                <script>
+                function focusPassword() {
+                    const input = parent.document.querySelector(
+                        'input[type="password"]'
+                    );
+
+                    if (input) {
+                        input.focus();
+                    } else {
+                        setTimeout(focusPassword, 100);
+                    }
+                }
+
+                setTimeout(focusPassword, 100);
+                </script>
+                """,
+                height=0,
             )
 
             submitted = st.form_submit_button(
